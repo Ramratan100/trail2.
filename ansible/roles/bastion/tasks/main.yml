@@ -1,0 +1,63 @@
+---
+- name: Install Apache and PHP
+  apt:
+    name:
+      - apache2
+      - php
+      - libapache2-mod-php
+      - php-mysql
+    state: present
+    update_cache: yes
+
+- name: Install MySQL client core 8.0
+  apt:
+    name: mysql-client-core-8.0
+    state: present
+
+- name: Remove index.php from /var/www/html
+  file:
+    path: /var/www/html/index.html
+    state: absent
+  ignore_errors: yes
+
+- name: Remove all files and directories in /var/www/html
+  command: rm -rf /var/www/html/*
+  args:
+    warn: false
+
+- name: Ensure /var/www/html is a directory
+  file:
+    path: /var/www/html
+    state: directory
+
+- name: Clone website repository
+  git:
+    repo: "{{ bastion_website_repo }}"
+    dest: "{{ bastion_website_dest }}"
+    clone: yes
+    update: yes
+    version: main
+    force: yes
+
+- name: Copy tokyojenkins.pem to /home/ubuntu
+  copy:
+    src: "{{ bastion_pem_file_src }}"
+    dest: "{{ bastion_pem_file_dest }}"
+    owner: ubuntu
+    group: ubuntu
+    mode: '0400'
+
+- name: Update Apache DirectoryIndex to prioritize index.php
+  lineinfile:
+    path: "{{ bastion_apache_index_file }}"
+    regexp: '^#?DirectoryIndex'
+    line: "{{ bastion_apache_index_line }}"
+    state: present
+    backrefs: yes
+
+- name: Restart Apache to apply changes
+  systemd:
+    name: apache2
+    state: restarted
+    enabled: yes
+

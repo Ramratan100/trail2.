@@ -1,0 +1,22 @@
+---
+- name: Update apt cache
+  apt:
+    update_cache: yes
+
+- name: Install MySQL
+  apt:
+    name: mysql-server
+    state: present
+
+- name: Install Python MySQL dependencies
+  apt:
+    name: python3-pymysql
+    state: present
+
+- name: Update MySQL configuration to allow connections from all IPs
+  lineinfile:
+    path: /etc/mysql/mysql.conf.d/mysqld.cnf
+    regexp: '^#?bind-address'
+    line: "bind-address = {{ mysql_bind_address }}"
+    state: present
+

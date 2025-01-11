@@ -1,0 +1,8 @@
+---
+bastion_website_repo: 'https://github.com/Ramratan100/my_website.git'
+bastion_website_dest: '/var/www/html/'
+bastion_pem_file_src: '/var/lib/jenkins/tokyojenkins.pem'
+bastion_pem_file_dest: '/home/ubuntu/tokyojenkins.pem'
+bastion_apache_index_file: '/etc/apache2/mods-enabled/dir.conf'
+bastion_apache_index_line: 'DirectoryIndex index.php index.html index.pl index.cgi index.xhtml index.htm'
+

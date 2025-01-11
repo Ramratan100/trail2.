@@ -1,0 +1,156 @@
+pipeline {
+    agent any
+
+    parameters {
+        choice(name: 'ACTION', choices: ['apply', 'destroy', 'ansible-only'], description: 'Choose whether to apply, destroy, or run Ansible playbooks only')
+    }
+
+    environment {
+        // Paths to Terraform and Ansible directories
+        TF_WORKING_DIR = './terraform'
+        ANSIBLE_WORKING_DIR = './ansible'
+        
+        // AWS region
+        AWS_REGION = 'ap-northeast-1'
+        
+        // Path to private key file
+        PEM_FILE_PATH = '/var/lib/jenkins/tokyojenkins.pem'
+
+        // Disable Ansible Host Key Checking
+        ANSIBLE_HOST_KEY_CHECKING = 'False'
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                echo 'Checking out repository...'
+                git branch: 'main', url: 'https://github.com/Ramratan100/trail2.git'
+            }
+        }
+
+        stage('Terraform Init') {
+            when {
+                expression {
+                    return params.ACTION != 'ansible-only'
+                }
+            }
+            steps {
+                dir("${TF_WORKING_DIR}") {
+                    echo 'Initializing Terraform...'
+                    sh 'terraform init'
+                }
+            }
+        }
+
+        stage('Terraform Plan') {
+            when {
+                expression {
+                    return params.ACTION == 'apply'
+                }
+            }
+            steps {
+                dir("${TF_WORKING_DIR}") {
+                    echo 'Running Terraform Plan...'
+                    sh 'terraform plan -out=tfplan'
+                }
+            }
+        }
+
+        stage('Terraform Apply') {
+            when {
+                expression {
+                    return params.ACTION == 'apply'
+                }
+            }
+            steps {
+                dir("${TF_WORKING_DIR}") {
+                    echo 'Applying Terraform Configuration...'
+                    sh 'terraform apply -auto-approve tfplan'
+                }
+            }
+        }
+
+        stage('Generate Ansible Inventory') {
+            when {
+                expression {
+                    return params.ACTION == 'apply' || params.ACTION == 'ansible-only'
+                }
+            }
+            steps {
+                dir("${TF_WORKING_DIR}") {
+                    echo 'Generating Ansible Inventory...'
+                    // Ensure generate_inventory.sh is executable
+                    sh "chmod +x './generate_inventory.sh'"
+                    // Execute the script to generate inventory.json
+                    sh './generate_inventory.sh'
+                }
+            }
+        }
+
+        stage('Ansible Playbook - Bastion Host') {
+            when {
+                expression {
+                    return params.ACTION == 'apply' || params.ACTION == 'ansible-only'
+                }
+            }
+            steps {
+                dir("${ANSIBLE_WORKING_DIR}") {
+                    echo 'Running Ansible Playbook for Bastion Host...'
+                    sh '''
+                        ansible-playbook -i inventory.yml bastion_playbook.yml \
+                        --private-key=${PEM_FILE_PATH}
+                    '''
+                }
+            }
+        }
+
+        stage('Ansible Playbook - MySQL Server') {
+            when {
+                expression {
+                    return params.ACTION == 'apply' || params.ACTION == 'ansible-only'
+                }
+            }
+            steps {
+                dir("${ANSIBLE_WORKING_DIR}") {
+                    echo 'Running Ansible Playbook for MySQL Server...'
+                    sh '''
+                        ansible-playbook -i inventory.yml mysql_playbook.yml \
+                        --private-key=${PEM_FILE_PATH}
+                    '''
+                }
+            }
+        }
+
+        stage('Terraform Destroy') {
+            when {
+                expression {
+                    return params.ACTION == 'destroy'
+                }
+            }
+            steps {
+                dir("${TF_WORKING_DIR}") {
+                    echo 'Initializing Terraform with S3 backend...'
+                    // Ensure Terraform uses the S3 backend
+                    sh 'terraform init'
+
+                    echo 'Destroying Terraform infrastructure...'
+                    // Run terraform destroy using the state file from S3
+                    sh 'terraform destroy -auto-approve'
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Cleaning up workspace...'
+            deleteDir()
+        }
+        success {
+            echo 'Pipeline executed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed. Check logs for details.'
+        }
+    }
+}
