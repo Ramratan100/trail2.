@@ -5,7 +5,7 @@ resource "aws_vpc" "database_vpc" {
   enable_dns_hostnames = true
  
   tags = {
-    Name = "Database-VPC"
+    Name = var.Database_VPC_name
   }
 }
  
@@ -14,7 +14,7 @@ resource "aws_internet_gateway" "database_igw" {
   vpc_id = aws_vpc.database_vpc.id
  
   tags = {
-    Name = "Database-IGW"
+    Name = var.Database_IGW_name
   }
 }
  
@@ -26,7 +26,7 @@ resource "aws_subnet" "public_subnet_web" {
   map_public_ip_on_launch = true
  
   tags = {
-    Name = "Public-Subnet-Web"
+    Name = var.Public_Subnet_Web_name
   }
 }
  
@@ -35,7 +35,7 @@ resource "aws_route_table" "public_route_table" {
   vpc_id = aws_vpc.database_vpc.id
  
   tags = {
-    Name = "Public-Route-Table"
+    Name = var.Public_Route_Table_name
   }
 }
  
@@ -60,7 +60,7 @@ resource "aws_subnet" "private_subnet_database" {
   map_public_ip_on_launch = false
  
   tags = {
-    Name = "Private-Subnet-Database"
+    Name = var.Private_Subnet_Database_name
   }
 }
  
@@ -69,7 +69,7 @@ resource "aws_eip" "nat_eip" {
   domain = "vpc"
  
   tags = {
-    Name = "NAT-Gateway-EIP"
+    Name = var.NAT_Gateway_EIP_name
   }
 }
  
@@ -79,7 +79,7 @@ resource "aws_nat_gateway" "nat_gateway" {
   subnet_id     = aws_subnet.public_subnet_web.id
  
   tags = {
-    Name = "NAT-Gateway"
+    Name = var.NAT_Gateway_name
   }
 }
  
@@ -88,7 +88,7 @@ resource "aws_route_table" "private_route_table" {
   vpc_id = aws_vpc.database_vpc.id
  
   tags = {
-    Name = "Private-Route-Table-Database"
+    Name = var.Private_Route_Table_Database_name
   }
 }
  
@@ -112,7 +112,7 @@ resource "aws_vpc_peering_connection" "vpc_peering" {
   auto_accept   = true
  
   tags = {
-    Name = "Master-Database-VPC-Peering"
+    Name = var.Master_Database_VPC_Peering_name
   }
 }
  
